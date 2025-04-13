@@ -53,14 +53,22 @@ function getPromiseResult(source) {
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)]  => Promise fulfilled with 1
  * [Promise.reject(1), Promise.reject(2), Promise.reject(3)]    => Promise rejected
  */
-function getFirstResolvedPromiseResult(...promises) {
-  if (promises.length === 0) {
-    return Promise.reject();
+async function getFirstResolvedPromiseResult(...promises) {
+  function func() {
+    if (promises[0].length === 0) {
+      return Promise.reject();
+    }
+    return promises[0][0].then(
+      (res) => {
+        return res;
+      },
+      () => {
+        promises[0].shift();
+        return func();
+      }
+    );
   }
-  const results = promises.map((el) => {
-
-  });
-  return ;
+  return func();
 }
 
 /**
@@ -82,8 +90,11 @@ function getFirstResolvedPromiseResult(...promises) {
  * [promise3, promise6, promise2] => Promise rejected with 2
  * [promise3, promise4, promise6] => Promise rejected with 6
  */
-function getFirstPromiseResult(/* promises */) {
-  throw new Error('Not implemented');
+function getFirstPromiseResult(...promises) {
+  return Promise.race(promises[0]).then(
+    (res) => res,
+    (rej) => rej
+  );
 }
 
 /**
@@ -97,8 +108,27 @@ function getFirstPromiseResult(/* promises */) {
  * [Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)] => Promise fulfilled with [1, 2, 3]
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)] => Promise rejected with 2
  */
-function getAllOrNothing(/* promises */) {
-  throw new Error('Not implemented');
+async function getAllOrNothing(prom) {
+  const promises = prom;
+  const result = [];
+  const resultProm = async function func() {
+    return promises[0].then(
+      (res) => {
+        result.push(res);
+        promises.shift();
+        if (promises.length === 0) {
+          return result;
+        }
+        resultProm();
+        return result;
+      },
+      (reject) => {
+        return Promise.reject(reject);
+      }
+    );
+  };
+  const a = await resultProm();
+  return a;
 }
 
 /**
@@ -113,8 +143,20 @@ function getAllOrNothing(/* promises */) {
  * [Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)] => Promise fulfilled with [1, 2, 3]
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)]  => Promise fulfilled with [1, null, 3]
  */
-function getAllResult(/* promises */) {
-  throw new Error('Not implemented');
+function getAllResult(promises) {
+  return Promise.resolve(
+    Promise.all(
+      promises.map((el) => {
+        return el
+          .then((res) => {
+            return res;
+          })
+          .catch(() => {
+            return null;
+          });
+      })
+    )
+  );
 }
 
 /**
@@ -135,8 +177,19 @@ function getAllResult(/* promises */) {
  * [promise1, promise4, promise3] => Promise.resolved('104030')
  * [promise1, promise4, promise3, promise2] => Promise.resolved('10403020')
  */
-function queuePromises(/* promises */) {
-  throw new Error('Not implemented');
+async function queuePromises(prom) {
+  const promises = prom;
+  const arr = [];
+  function func() {
+    const result = promises[0].then((res) => {
+      promises.shift();
+      arr.push(res);
+      if (promises.length !== 0) return func();
+      return Promise.resolve(arr.join(''));
+    });
+    return result;
+  }
+  return func();
 }
 
 module.exports = {
