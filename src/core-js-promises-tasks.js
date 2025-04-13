@@ -110,25 +110,22 @@ function getFirstPromiseResult(...promises) {
  */
 async function getAllOrNothing(prom) {
   const promises = prom;
-  const result = [];
-  const resultProm = async function func() {
-    return promises[0].then(
-      (res) => {
-        result.push(res);
-        promises.shift();
-        if (promises.length === 0) {
-          return result;
-        }
-        resultProm();
-        return result;
-      },
-      (reject) => {
-        return Promise.reject(reject);
-      }
-    );
-  };
-  const a = await resultProm();
-  return a;
+  let err;
+  const result = Promise.resolve(
+    Promise.all(
+      promises.map((el) => {
+        return el
+          .then((res) => {
+            return res;
+          })
+          .catch((rej) => {
+            err = Promise.reject(rej);
+            return null;
+          });
+      })
+    )
+  );
+  return err || result;
 }
 
 /**
